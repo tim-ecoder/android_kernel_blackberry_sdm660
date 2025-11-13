@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -331,9 +331,6 @@ int pil_mss_shutdown(struct pil_desc *pil)
 		drv->is_booted = false;
 	}
 
-	if (drv->mx_spike_wa && drv->ahb_clk_vote)
-		clk_disable_unprepare(drv->ahb_clk);
-
 	return ret;
 }
 
@@ -586,7 +583,7 @@ int pil_mss_reset_load_mba(struct pil_desc *pil)
 
 	arch_setup_dma_ops(dma_dev, 0, 0, NULL, 0);
 
-	dma_dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	dma_dev->coherent_dma_mask = DMA_BIT_MASK(sizeof(dma_addr_t) * 8);
 
 	init_dma_attrs(&md->attrs_dma);
 	dma_set_attr(DMA_ATTR_SKIP_ZEROING, &md->attrs_dma);
@@ -685,7 +682,7 @@ err_invalid_fw:
 }
 
 static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
-		size_t size, phys_addr_t phy_addr, size_t phy_sz)
+					size_t size)
 {
 	struct modem_data *drv = dev_get_drvdata(pil->dev);
 	void *mdata_virt;
@@ -698,7 +695,7 @@ static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
 
 
 	trace_pil_func(__func__);
-	dma_dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	dma_dev->coherent_dma_mask = DMA_BIT_MASK(sizeof(dma_addr_t) * 8);
 	dma_set_attr(DMA_ATTR_SKIP_ZEROING, &attrs);
 	dma_set_attr(DMA_ATTR_STRONGLY_ORDERED, &attrs);
 	/* Make metadata physically contiguous and 4K aligned. */
@@ -715,19 +712,6 @@ static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
 	wmb();
 
 	if (pil->subsys_vmid > 0) {
-		/**
-		  * In case of modem ssr,we need to assign memory back to linux.
-		  * This is not true after cold boot since linux already owns
-		  * it. Also for secure boot devices, modem memory has to be
-		  * released after MBA is booted
-		  */
-		if (pil->modem_ssr) {
-			ret = pil_assign_mem_to_linux(pil, phy_addr, phy_sz);
-			if (ret)
-				dev_err(pil->dev,
-					"Failed to assign to linux, ret- %d\n",
-					ret);
-		}
 		ret = pil_assign_mem_to_subsys(pil, mdata_phys,
 							ALIGN(size, SZ_4K));
 		if (ret) {
@@ -782,8 +766,7 @@ fail:
 }
 
 static int pil_msa_mss_reset_mba_load_auth_mdt(struct pil_desc *pil,
-		const u8 *metadata, size_t size,
-		phys_addr_t modem_reg, size_t sz_modem_reg)
+				  const u8 *metadata, size_t size)
 {
 	int ret;
 
@@ -791,8 +774,7 @@ static int pil_msa_mss_reset_mba_load_auth_mdt(struct pil_desc *pil,
 	if (ret)
 		return ret;
 
-	return pil_msa_auth_modem_mdt(pil, metadata, size,
-			modem_reg, sz_modem_reg);
+	return pil_msa_auth_modem_mdt(pil, metadata, size);
 }
 
 static int pil_msa_mba_verify_blob(struct pil_desc *pil, phys_addr_t phy_addr,

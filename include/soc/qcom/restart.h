@@ -20,10 +20,9 @@
 void msm_set_restart_mode(int mode);
 extern int pmic_reset_irq;
 
-/* FIH, to support fih apr */
-unsigned int restart_reason_rd(void);
-void restart_reason_wt(unsigned int rere);
-/* FIH, to support fih apr */
-
+#ifdef CONFIG_BBRY
+#include <linux/input/qpnp-power-on.h>
+enum pon_power_off_type pwr_off_default_type(void);
+#endif
 #endif
 

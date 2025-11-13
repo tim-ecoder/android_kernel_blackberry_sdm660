@@ -25,6 +25,7 @@
 #include <linux/kobject.h>
 #include <linux/cdev.h>
 #include <linux/uio_driver.h>
+#include <asm/local.h>
 
 #define UIO_MAX_DEVICES		(1U << MINORBITS)
 
@@ -248,8 +249,6 @@ static struct class uio_class = {
 	.name = "uio",
 	.dev_groups = uio_groups,
 };
-
-bool uio_class_registered;
 
 /*
  * device functions
@@ -582,9 +581,13 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 static int uio_find_mem_index(struct vm_area_struct *vma)
 {
 	struct uio_device *idev = vma->vm_private_data;
+	unsigned long size;
 
 	if (vma->vm_pgoff < MAX_UIO_MAPS) {
-		if (idev->info->mem[vma->vm_pgoff].size == 0)
+		size = idev->info->mem[vma->vm_pgoff].size;
+		if (size == 0)
+			return -1;
+		if (vma->vm_end - vma->vm_start > size)
 			return -1;
 		return (int)vma->vm_pgoff;
 	}
@@ -774,9 +777,6 @@ static int init_uio_class(void)
 		printk(KERN_ERR "class_register failed for uio\n");
 		goto err_class_register;
 	}
-
-	uio_class_registered = true;
-
 	return 0;
 
 err_class_register:
@@ -787,7 +787,6 @@ exit:
 
 static void release_uio_class(void)
 {
-	uio_class_registered = false;
 	class_unregister(&uio_class);
 	uio_major_cleanup();
 }
@@ -806,9 +805,6 @@ int __uio_register_device(struct module *owner,
 {
 	struct uio_device *idev;
 	int ret = 0;
-
-	if (!uio_class_registered)
-		return -EPROBE_DEFER;
 
 	if (!parent || !info || !info->name || !info->version)
 		return -EINVAL;
@@ -855,10 +851,8 @@ int __uio_register_device(struct module *owner,
 		 */
 		ret = request_irq(info->irq, uio_interrupt,
 				  info->irq_flags, info->name, idev);
-		if (ret) {
-			info->uio_dev = NULL;
+		if (ret)
 			goto err_request_irq;
-		}
 	}
 
 	return 0;

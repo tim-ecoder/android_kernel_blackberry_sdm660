@@ -94,7 +94,7 @@ static void log_modem_sfr(void)
 	strlcpy(reason, smem_reason, min(size, MAX_SSR_REASON_LEN));
 #ifdef CONFIG_BBRY
 	// print full string to dmesg
-	pr_err("modem subsystem failure reason: %s.\n", smem_reason);
+	pr_err("modem subsystem failure smem_reason: %s.\n", smem_reason);
 #else
 	pr_err("modem subsystem failure reason: %s.\n", reason);
 #endif

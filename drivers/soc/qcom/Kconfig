@@ -1,15 +1,6 @@
 #
 # QCOM Soc drivers
 #
-source "drivers/soc/qcom/hab/Kconfig"
-config MSM_PASR
-	bool "MSM DDR Partial Array Self-Refresh Driver"
-	help
-	  RPM controls DDR functionaliy. This driver
-	  is an interface for linux memory hotplug to RPM
-	  for start/stop self-refresh of hot added or removed
-	  memory in DDR.
-
 config MSM_INRUSH_CURRENT_MITIGATION
 	bool "Inrush-current mitigation Driver"
 	help
@@ -326,16 +317,6 @@ config MSM_IPC_ROUTER_GLINK_XPRT
 	  this layer registers a transport with IPC Router and enable
 	  message exchange.
 
-config MSM_IPC_ROUTER_SDIO_XPRT
-	depends on QTI_SDIO_CLIENT
-	depends on IPC_ROUTER
-	bool "MSM SDIO XPRT Layer"
-	help
-	  SDIO Transport Layer that enables off-chip communication of
-	  IPC Router. When the SDIO endpoint becomes available, this layer
-	  registers the transport with IPC Router and enable message
-	  exchange.
-
 config MSM_SYSTEM_HEALTH_MONITOR
 	bool "System Health Monitor"
 	depends on MSM_QMI_INTERFACE && MSM_SUBSYSTEM_RESTART
@@ -401,9 +382,6 @@ config QCOM_SCM
 config QCOM_SCM_QCPE
        bool "Para-Virtualized Secure Channel Manager (SCM) support over QCPE"
        default n
-
-config QCOM_EARLY_DOMAIN
-	bool "Support for handoff of early domain services running in bootloader"
 
 menuconfig QCOM_SCM_XPU
 	bool "Qualcomm XPU configuration driver"
@@ -580,26 +558,6 @@ config MSM_CORE_HANG_DETECT
 	  reset on core hang detection and collects the core context
 	  for hang.
 
-config FIH_FEATURE_RPM_STATS_LOG
-	bool "FIH RPM STATS LOG"
-	default n
-	help
-	 Enable to show RPM stats log after device resume from susped state.
-
-config FIH_FEATURE_RPM_MASTER_STATS_LOG
-	bool "FIH RPM MASTER STATS LOG"
-	depends on FIH_FEATURE_RPM_STATS_LOG
-	default n
-	help
-	 Enable to show RPM Master Stats log after device resume from suspend
-	 with certain conditions meet.
-
-config FIH_SUSPEND_RESUME_LOG
-	bool "FIH LOG about SUSPEND/RESUME"
-	default n
-	help
-	 Enable suspend and resume debug log.
-
 config MSM_RUN_QUEUE_STATS
 	bool "Enable collection and exporting of MSM Run Queue stats to userspace"
 	help
@@ -655,15 +613,6 @@ config MSM_QDSP6_APRV2
           application processor and QDSP6. APR is
           used by audio driver to configure QDSP6's
           ASM, ADM and AFE.
-
-config MSM_QDSP6_APRV2_VM
-        bool "Audio QDSP6 APRv2 virtualization support"
-        depends on MSM_HAB
-        help
-          Enable APRv2 IPC protocol support over
-          HAB between application processor and
-          QDSP6. APR is used by audio driver to
-          configure QDSP6's ASM, ADM and AFE.
 
 config MSM_QDSP6_APRV3
 	bool "Audio QDSP6 APRv3 support"
@@ -743,18 +692,6 @@ config MSM_CDSP_LOADER
 	  Enable CDSP image loader.
 	  The CDSP loader brings CDSP out of reset
 	  during boot.
-	  Say M if you want to enable this module.
-
-config MSM_LPASS_RESOURCE_MANAGER
-	tristate "LPASS Resource Manager support"
-	select SND_SOC_MSM_APRV2_INTF
-	depends on MSM_QDSP6_APRV2 || MSM_QDSP6_APRV3 || \
-		MSM_QDSP6_APRV2_GLINK || MSM_QDSP6_APRV3_GLINK
-	help
-	  Manages the allocation of LPASS resources. It also
-	  can check LPAIF for Early Audio playback progress.
-	  To check early audio playback, PCM registers are read.
-	  If register is enabled, playback is on-going.
 	  Say M if you want to enable this module.
 
 config MSM_PERFORMANCE
@@ -861,8 +798,7 @@ config MSM_EVENT_TIMER
 
 config MSM_AVTIMER
 	tristate "Avtimer Driver"
-	depends on MSM_QDSP6_APRV2 || MSM_QDSP6_APRV3 || MSM_QDSP6_APRV2_GLINK || \
-		MSM_QDSP6_APRV2_VM
+	depends on MSM_QDSP6_APRV2 || MSM_QDSP6_APRV3 || MSM_QDSP6_APRV2_GLINK
 	help
 		This driver gets the Q6 out of power collapsed state and
 		exposes ioctl control to read avtimer tick.
@@ -1010,26 +946,5 @@ config MSM_CACHE_M4M_ERP64_PANIC_ON_UE
        help
          Say 'Y' here to cause kernel panic when uncorrectable cache/M4M errors
          are detected.
-
-config QCOM_QDSS_BRIDGE
-	bool "Configure bridge driver for QTI/Qualcomm Technologies, Inc. MDM"
-	depends on MSM_MHI
-	help
-	  The driver will help route diag traffic from modem side over the QDSS
-	  sub-system to USB on APSS side. The driver acts as a bridge between the
-	  MHI and USB interface. If unsure, say N.
-
-config EXT_ANC
-	bool "Enable External ANC"
-	depends on MSM_QDSP6_APRV2 || MSM_QDSP6_APRV3
-	help
-	 This option enables support for anti-noise cnacellation
-	 on Sensor DSP.
-
-config MFSE_QMI
-	bool "QMI client for MFSE"
-	depends on MSM_QMI_INTERFACE
-	help
-	 This option enables the QMI client driver for MFSE service.
 
 source "drivers/soc/qcom/memshare/Kconfig"

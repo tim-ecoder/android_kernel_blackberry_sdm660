@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,6 +31,9 @@
 #include <soc/qcom/memory_dump.h>
 #include <soc/qcom/minidump.h>
 #include <soc/qcom/watchdog.h>
+#ifdef CONFIG_BBRY
+#include <linux/input/qpnp-power-on.h>
+#endif
 
 #define MODULE_NAME "msm_watchdog"
 #define WDT0_ACCSCSSNBARK_INT 0
@@ -500,6 +503,7 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 		wdog_dd->last_pet, nanosec_rem / 1000);
 	if (wdog_dd->do_ipi_ping)
 		dump_cpu_alive_mask(wdog_dd);
+    qpnp_pon_set_restart_reason(PON_RESTART_REASON_HLOS_WDOG_BARK);
 	msm_trigger_wdog_bite();
 	panic("Failed to cause a watchdog bite! - Falling back to kernel panic!");
 	return IRQ_HANDLED;
@@ -873,7 +877,8 @@ err:
 }
 
 static const struct dev_pm_ops msm_watchdog_dev_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(msm_watchdog_suspend, msm_watchdog_resume)
+	.suspend_noirq = msm_watchdog_suspend,
+	.resume_noirq = msm_watchdog_resume,
 };
 
 static struct platform_driver msm_watchdog_driver = {

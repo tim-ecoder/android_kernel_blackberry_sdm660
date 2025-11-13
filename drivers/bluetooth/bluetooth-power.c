@@ -163,11 +163,8 @@ static int bt_configure_vreg(struct bt_power_vreg_data *vreg)
 	/* Get the regulator handle for vreg */
 	if (!(vreg->reg)) {
 		rc = bt_vreg_init(vreg);
-		if (rc < 0){
-			printk("BBox; %s LINE=%d name=%s rc=%d\n",__func__,__LINE__,vreg->name,rc);
-			printk("BBox::UEC;14::0\n");
+		if (rc < 0)
 			return rc;
-		}
 	}
 	rc = bt_vreg_enable(vreg);
 
@@ -227,8 +224,6 @@ static int bt_configure_gpios(int on)
 		if (rc) {
 			BT_PWR_ERR("unable to request gpio %d (%d)\n",
 					bt_reset_gpio, rc);
-			printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-			printk("BBox::UEC;14::0\n");
 			return rc;
 		}
 
@@ -262,8 +257,6 @@ static int bluetooth_power(int on)
 			rc = bt_configure_vreg(bt_power_pdata->bt_vdd_io);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power vddio config failed");
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-				printk("BBox::UEC;14::0\n");
 				goto out;
 			}
 		}
@@ -271,8 +264,6 @@ static int bluetooth_power(int on)
 			rc = bt_configure_vreg(bt_power_pdata->bt_vdd_xtal);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power vddxtal config failed");
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::0\n");
 				goto vdd_xtal_fail;
 			}
 		}
@@ -280,8 +271,6 @@ static int bluetooth_power(int on)
 			rc = bt_configure_vreg(bt_power_pdata->bt_vdd_core);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power vddcore config failed");
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::0\n");
 				goto vdd_core_fail;
 			}
 		}
@@ -289,8 +278,6 @@ static int bluetooth_power(int on)
 			rc = bt_configure_vreg(bt_power_pdata->bt_vdd_pa);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power vddpa config failed");
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::0\n");
 				goto vdd_pa_fail;
 			}
 		}
@@ -298,8 +285,6 @@ static int bluetooth_power(int on)
 			rc = bt_configure_vreg(bt_power_pdata->bt_vdd_ldo);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power vddldo config failed");
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::0\n");
 				goto vdd_ldo_fail;
 			}
 		}
@@ -307,8 +292,6 @@ static int bluetooth_power(int on)
 			rc = bt_configure_vreg(bt_power_pdata->bt_chip_pwd);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power chippwd config failed");
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::0\n");
 				goto chip_pwd_fail;
 			}
 		}
@@ -319,8 +302,6 @@ static int bluetooth_power(int on)
 			rc = bt_clk_enable(bt_power_pdata->bt_chip_clk);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power gpio config failed");
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::0\n");
 				goto clk_fail;
 			}
 		}
@@ -328,8 +309,6 @@ static int bluetooth_power(int on)
 			rc = bt_configure_gpios(on);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power gpio config failed");
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::0\n");
 				goto gpio_fail;
 			}
 		}

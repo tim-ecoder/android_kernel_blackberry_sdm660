@@ -15,7 +15,8 @@ obj-$(CONFIG_MSM_GLINK_SPI_XPRT)	+=	glink_spi_xprt.o
 obj-$(CONFIG_MSM_SMEM_LOGGING)	+=	smem_log.o
 obj-$(CONFIG_MSM_SYSMON_GLINK_COMM)	+= sysmon-glink.o sysmon-qmi.o
 obj-$(CONFIG_ARCH_MSM8996) +=	kryo-l2-accessors.o
-obj-$(CONFIG_MSM_SMP2P)	+=	smp2p.o smp2p_loopback.o smp2p_debug.o smp2p_sleepstate.o
+obj-$(CONFIG_MSM_SMP2P)	+=	smp2p.o smp2p_debug.o smp2p_sleepstate.o
+obj-$(CONFIG_MSM_SMP2P_TEST)	+=	smp2p_loopback.o smp2p_test.o smp2p_spinlock_test.o
 obj-$(CONFIG_MSM_QMI_INTERFACE)	+=	qmi_interface.o
 obj-$(CONFIG_MSM_RPM_SMD)	+=	rpm-smd.o
 obj-$(CONFIG_MSM_HVC) += hvc.o
@@ -24,7 +25,6 @@ obj-$(CONFIG_MSM_RPM_SMD)	+=	rpm-smd-debug.o
 endif
 obj-$(CONFIG_MSM_IPC_ROUTER_SMD_XPRT)	+=	ipc_router_smd_xprt.o
 obj-$(CONFIG_MSM_IPC_ROUTER_HSIC_XPRT)	+=	ipc_router_hsic_xprt.o
-obj-$(CONFIG_MSM_IPC_ROUTER_SDIO_XPRT)	+=	ipc_router_sdio_xprt.o
 obj-$(CONFIG_MSM_IPC_ROUTER_MHI_XPRT)	+=	ipc_router_mhi_xprt.o
 obj-$(CONFIG_MSM_IPC_ROUTER_GLINK_XPRT)	+=	ipc_router_glink_xprt.o
 obj-$(CONFIG_MSM_SPCOM) += spcom.o
@@ -42,13 +42,11 @@ obj-$(CONFIG_MSM_PFE_WA) += pfe-wa.o
 obj-$(CONFIG_ARCH_MSM8996) += msm_cpu_voltage.o
 
 obj-$(CONFIG_MSM_PERFORMANCE) += msm_performance.o
-obj-$(CONFIG_MSM_PASR) += pasr.o
 
 ifdef CONFIG_MSM_SUBSYSTEM_RESTART
 	obj-y += subsystem_notif.o
 	obj-y += subsystem_restart.o
 	obj-y += ramdump.o
-	obj-$(CONFIG_MSM_GVM_QUIN) += subsystem_notif_virt.o
 endif
 
 obj-$(CONFIG_QPNP_HAPTIC) += qpnp-haptic.o
@@ -72,7 +70,6 @@ obj-$(CONFIG_QCOM_MEMORY_DUMP_V2) += memory_dump_v2.o
 obj-$(CONFIG_QCOM_MINIDUMP) += msm_minidump.o
 obj-$(CONFIG_QCOM_DCC) += dcc.o
 obj-$(CONFIG_QCOM_WATCHDOG_V2) += watchdog_v2.o
-obj-$(CONFIG_QCOM_EARLY_DOMAIN)	+= early_dom.o
 obj-$(CONFIG_QCOM_COMMON_LOG) += common_log.o
 obj-$(CONFIG_QCOM_IRQ_HELPER) += irq-helper.o
 obj-$(CONFIG_TRACER_PKT)	+=	tracer_pkt.o
@@ -110,11 +107,6 @@ obj-$(CONFIG_QCOM_SMCINVOKE) += smcinvoke.o
 obj-$(CONFIG_QCOM_EARLY_RANDOM)	+= early_random.o
 obj-$(CONFIG_QCOM_CX_IPEAK) += cx_ipeak.o
 obj-$(CONFIG_MSM_CACHE_M4M_ERP64) += cache_m4m_erp64.o
-obj-$(CONFIG_MSM_HAB) += hab/
-obj-$(CONFIG_QCOM_QDSS_BRIDGE) += qdss_bridge.o
-obj-$(CONFIG_MFSE_QMI) += mfse_qmi_v01.o mfse_qmi.o
-
-# TODO: remove me b/62058353
-subdir-ccflags-y += \
-	-Wno-ignored-attributes \
-	-Wno-gcc-compat
+# start:BBRY_ANDROID
+obj-$(CONFIG_BBRY) += bbry/
+# end:BBRY_ANDROID
