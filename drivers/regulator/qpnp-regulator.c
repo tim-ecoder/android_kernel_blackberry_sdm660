@@ -43,12 +43,6 @@ enum {
 	QPNP_VREG_DEBUG_OCP		= BIT(5), /* Show VS OCP IRQ events */
 };
 
-//Add bbs log
-#define BBOX_REGULATOR_PROBE_FAIL do {printk("BBox;%s: Probe fail\n", __func__); printk("BBox::UEC;17::0\n");} while (0)
-#define REGULATOR_READ_ERROR(rc)	do {printk("BBox;%s: read error:%d\n", __func__, rc); printk("BBox::UEC;17::4\n");} while (0)
-#define REGULATOR_WRITE_ERROR(rc)	do {printk("BBox;%s: write error:%d\n", __func__, rc); printk("BBox::UEC;17::5\n");} while (0)
-//~Add bbs log
-
 static int qpnp_vreg_debug_mask;
 module_param_named(
 	debug_mask, qpnp_vreg_debug_mask, int, 0600
@@ -565,11 +559,7 @@ static inline int qpnp_vreg_read(struct qpnp_regulator *vreg, u16 addr, u8 *buf,
 			to_spmi_device(vreg->pdev->dev.parent)->usid, len,
 			str);
 	}
-	//Add bbs log
-	if (rc) {
-		REGULATOR_READ_ERROR(rc);
-	}
-	//~Add bbs log
+
 	return rc;
 }
 
@@ -591,11 +581,7 @@ static inline int qpnp_vreg_write(struct qpnp_regulator *vreg, u16 addr,
 	rc = regmap_bulk_write(vreg->regmap, vreg->base_addr + addr, buf, len);
 	if (!rc)
 		vreg->write_count += len;
-	//Add bbs log
-	if (rc) {
-		REGULATOR_WRITE_ERROR(rc);
-	}
-	//~Add bbs log
+
 	return rc;
 }
 
@@ -1785,7 +1771,7 @@ static int qpnp_regulator_check_constraints(struct qpnp_regulator *vreg,
 	if (vreg->logical_type == QPNP_REGULATOR_LOGICAL_TYPE_FTSMPS) {
 		max_uV = pdata->init_data.constraints.max_uV;
 		/* Find the range which max_uV is inside of. */
-		for (i = vreg->set_points->count - 1; i >= 0; i--) {
+		for (i = vreg->set_points->count - 1; i > 0; i--) {
 			range = &vreg->set_points->range[i];
 			if (range->set_point_max_uV > 0
 				&& max_uV >= range->set_point_min_uV
@@ -2290,9 +2276,6 @@ static int qpnp_regulator_probe(struct platform_device *pdev)
 	vreg->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!vreg->regmap) {
 		dev_err(&pdev->dev, "Couldn't get parent's regmap\n");
-		//Add bbs log
-		BBOX_REGULATOR_PROBE_FAIL;
-		//~Add bbs log
 		return -EINVAL;
 	}
 
@@ -2307,9 +2290,6 @@ static int qpnp_regulator_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "%s: unable to allocate memory\n",
 					__func__);
 			kfree(vreg);
-			//Add bbs log
-			BBOX_REGULATOR_PROBE_FAIL;
-			//~Add bbs log
 			return -ENOMEM;
 		}
 		memset(&of_pdata, 0,
@@ -2325,9 +2305,6 @@ static int qpnp_regulator_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "%s: DT parsing failed, rc=%d\n",
 					__func__, rc);
 			kfree(vreg);
-			//Add bbs log
-			BBOX_REGULATOR_PROBE_FAIL;
-			//~Add bbs log
 			return -ENOMEM;
 		}
 
@@ -2340,9 +2317,6 @@ static int qpnp_regulator_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s: no platform data specified\n",
 			__func__);
 		kfree(vreg);
-		//Add bbs log
-		BBOX_REGULATOR_PROBE_FAIL;
-		//~Add bbs log
 		return -EINVAL;
 	}
 
@@ -2371,9 +2345,6 @@ static int qpnp_regulator_probe(struct platform_device *pdev)
 				MAX_NAME_LEN) + 1, GFP_KERNEL);
 	if (!reg_name) {
 		kfree(vreg);
-		//Add bbs log
-		BBOX_REGULATOR_PROBE_FAIL;
-		//~Add bbs log
 		return -ENOMEM;
 	}
 	strlcpy(reg_name, pdata->init_data.constraints.name,
@@ -2462,9 +2433,7 @@ bail:
 
 	kfree(vreg->rdesc.name);
 	kfree(vreg);
-	//Add bbs log
-	BBOX_REGULATOR_PROBE_FAIL;
-	//~Add bbs log
+
 	return rc;
 }
 

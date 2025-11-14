@@ -89,8 +89,6 @@ static LIST_HEAD(hvc_structs);
  */
 static DEFINE_SPINLOCK(hvc_structs_lock);
 
-/* Mutex to serialize hvc_open */
-static DEFINE_MUTEX(hvc_open_mutex);
 /*
  * This value is used to assign a tty->index value to a hvc_struct based
  * upon order of exposure via hvc_probe(), when we can not match it to
@@ -291,6 +289,10 @@ int hvc_instantiate(uint32_t vtermno, int index, const struct hv_ops *ops)
 	vtermnos[index] = vtermno;
 	cons_ops[index] = ops;
 
+	/* reserve all indices up to and including this index */
+	if (last_hvc < index)
+		last_hvc = index;
+
 	/* check if we need to re-register the kernel console */
 	hvc_check_console(index);
 
@@ -335,24 +337,16 @@ static int hvc_install(struct tty_driver *driver, struct tty_struct *tty)
  */
 static int hvc_open(struct tty_struct *tty, struct file * filp)
 {
-	struct hvc_struct *hp;
+	struct hvc_struct *hp = tty->driver_data;
 	unsigned long flags;
 	int rc = 0;
 
-	mutex_lock(&hvc_open_mutex);
-
-	hp = tty->driver_data;
-	if (!hp) {
-		rc = -EIO;
-		goto out;
-	}
-
 	spin_lock_irqsave(&hp->port.lock, flags);
 	/* Check and then increment for fast path open. */
-	if (hp->port.count++ > 0) {
+	if (atomic_inc_return(&hp->port.count) > 1) {
 		spin_unlock_irqrestore(&hp->port.lock, flags);
 		hvc_kick();
-		goto out;
+		return 0;
 	} /* else count == 0 */
 	spin_unlock_irqrestore(&hp->port.lock, flags);
 
@@ -381,8 +375,6 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	/* Force wakeup of the polling thread */
 	hvc_kick();
 
-out:
-	mutex_unlock(&hvc_open_mutex);
 	return rc;
 }
 
@@ -406,7 +398,7 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 
 	spin_lock_irqsave(&hp->port.lock, flags);
 
-	if (--hp->port.count == 0) {
+	if (atomic_dec_return(&hp->port.count) == 0) {
 		spin_unlock_irqrestore(&hp->port.lock, flags);
 		/* We are done with the tty pointer now. */
 		tty_port_tty_set(&hp->port, NULL);
@@ -428,9 +420,9 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 		 */
 		tty_wait_until_sent(tty, HVC_CLOSE_WAIT);
 	} else {
-		if (hp->port.count < 0)
+		if (atomic_read(&hp->port.count) < 0)
 			printk(KERN_ERR "hvc_close %X: oops, count is %d\n",
-				hp->vtermno, hp->port.count);
+				hp->vtermno, atomic_read(&hp->port.count));
 		spin_unlock_irqrestore(&hp->port.lock, flags);
 	}
 }
@@ -460,12 +452,12 @@ static void hvc_hangup(struct tty_struct *tty)
 	 * open->hangup case this can be called after the final close so prevent
 	 * that from happening for now.
 	 */
-	if (hp->port.count <= 0) {
+	if (atomic_read(&hp->port.count) <= 0) {
 		spin_unlock_irqrestore(&hp->port.lock, flags);
 		return;
 	}
 
-	hp->port.count = 0;
+	atomic_set(&hp->port.count, 0);
 	spin_unlock_irqrestore(&hp->port.lock, flags);
 	tty_port_tty_set(&hp->port, NULL);
 
@@ -513,7 +505,7 @@ static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count
 		return -EPIPE;
 
 	/* FIXME what's this (unprotected) check for? */
-	if (hp->port.count <= 0)
+	if (atomic_read(&hp->port.count) <= 0)
 		return -EIO;
 
 	spin_lock_irqsave(&hp->lock, flags);
@@ -904,22 +896,13 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 		    cons_ops[i] == hp->ops)
 			break;
 
-	if (i >= MAX_NR_HVC_CONSOLES) {
-
-		/* find 'empty' slot for console */
-		for (i = 0; i < MAX_NR_HVC_CONSOLES && vtermnos[i] != -1; i++) {
-		}
-
-		/* no matching slot, just use a counter */
-		if (i == MAX_NR_HVC_CONSOLES)
-			i = ++last_hvc + MAX_NR_HVC_CONSOLES;
-	}
+	/* no matching slot, just use a counter */
+	if (i >= MAX_NR_HVC_CONSOLES)
+		i = ++last_hvc;
 
 	hp->index = i;
-	if (i < MAX_NR_HVC_CONSOLES) {
-		cons_ops[i] = ops;
-		vtermnos[i] = vtermno;
-	}
+	cons_ops[i] = ops;
+	vtermnos[i] = vtermno;
 
 	list_add_tail(&(hp->next), &hvc_structs);
 	spin_unlock(&hvc_structs_lock);

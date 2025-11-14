@@ -341,13 +341,13 @@ static int ulite_request_port(struct uart_port *port)
 		return -EBUSY;
 	}
 
-	port->private_data = &uartlite_be;
+	port->private_data = (void *)&uartlite_be;
 	ret = uart_in32(ULITE_CONTROL, port);
 	uart_out32(ULITE_CONTROL_RST_TX, ULITE_CONTROL, port);
 	ret = uart_in32(ULITE_STATUS, port);
 	/* Endianess detection */
 	if ((ret & ULITE_STATUS_TXEMPTY) != ULITE_STATUS_TXEMPTY)
-		port->private_data = &uartlite_le;
+		port->private_data = (void *)&uartlite_le;
 
 	return 0;
 }
@@ -701,8 +701,7 @@ err_uart:
 static void __exit ulite_exit(void)
 {
 	platform_driver_unregister(&ulite_platform_driver);
-	if (ulite_uart_driver.state)
-		uart_unregister_driver(&ulite_uart_driver);
+	uart_unregister_driver(&ulite_uart_driver);
 }
 
 module_init(ulite_init);

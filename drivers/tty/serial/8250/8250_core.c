@@ -488,9 +488,9 @@ static void univ8250_release_port(struct uart_port *port)
 
 static void univ8250_rsa_support(struct uart_ops *ops)
 {
-	ops->config_port  = univ8250_config_port;
-	ops->request_port = univ8250_request_port;
-	ops->release_port = univ8250_release_port;
+	*(void **)&ops->config_port  = univ8250_config_port;
+	*(void **)&ops->request_port = univ8250_request_port;
+	*(void **)&ops->release_port = univ8250_release_port;
 }
 
 #else
@@ -530,12 +530,13 @@ static void __init serial8250_isa_init_ports(void)
 		 */
 		up->mcr_mask = ~ALPHA_KLUDGE_MCR;
 		up->mcr_force = ALPHA_KLUDGE_MCR;
-		serial8250_set_defaults(up);
 	}
 
 	/* chain base port ops to support Remote Supervisor Adapter */
-	univ8250_port_ops = *base_ops;
+	pax_open_kernel();
+	memcpy((void *)&univ8250_port_ops, base_ops, sizeof univ8250_port_ops);
 	univ8250_rsa_support(&univ8250_port_ops);
+	pax_close_kernel();
 
 	if (share_irqs)
 		irqflag = IRQF_SHARED;
@@ -554,6 +555,7 @@ static void __init serial8250_isa_init_ports(void)
 		port->membase  = old_serial_port[i].iomem_base;
 		port->iotype   = old_serial_port[i].io_type;
 		port->regshift = old_serial_port[i].iomem_reg_shift;
+		serial8250_set_defaults(up);
 
 		port->irqflags |= irqflag;
 		if (serial8250_isa_config != NULL)
@@ -1037,10 +1039,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 			ret = uart_add_one_port(&serial8250_reg,
 						&uart->port);
-			if (ret)
-				goto err;
-
-			ret = uart->port.line;
+			if (ret == 0)
+				ret = uart->port.line;
 		} else {
 			dev_info(uart->port.dev,
 				"skipping CIR port at 0x%lx / 0x%llx, IRQ %d\n",
@@ -1053,11 +1053,6 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 	}
 	mutex_unlock(&serial_mutex);
 
-	return ret;
-
-err:
-	uart->port.dev = NULL;
-	mutex_unlock(&serial_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(serial8250_register_8250_port);

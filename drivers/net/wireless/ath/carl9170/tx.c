@@ -193,7 +193,7 @@ static int carl9170_alloc_dev_space(struct ar9170 *ar, struct sk_buff *skb)
 	unsigned int chunks;
 	int cookie = -1;
 
-	atomic_inc(&ar->mem_allocs);
+	atomic_inc_unchecked(&ar->mem_allocs);
 
 	chunks = DIV_ROUND_UP(skb->len, ar->fw.mem_block_size);
 	if (unlikely(atomic_sub_return(chunks, &ar->mem_free_blocks) < 0)) {
@@ -720,12 +720,12 @@ static void carl9170_tx_rate_tpc_chains(struct ar9170 *ar,
 			/* +1 dBm for HT40 */
 			*tpc += 2;
 
-			if (info->band == NL80211_BAND_2GHZ)
+			if (info->band == IEEE80211_BAND_2GHZ)
 				txpower = ar->power_2G_ht40;
 			else
 				txpower = ar->power_5G_ht40;
 		} else {
-			if (info->band == NL80211_BAND_2GHZ)
+			if (info->band == IEEE80211_BAND_2GHZ)
 				txpower = ar->power_2G_ht20;
 			else
 				txpower = ar->power_5G_ht20;
@@ -734,7 +734,7 @@ static void carl9170_tx_rate_tpc_chains(struct ar9170 *ar,
 		*phyrate = txrate->idx;
 		*tpc += txpower[idx & 7];
 	} else {
-		if (info->band == NL80211_BAND_2GHZ) {
+		if (info->band == IEEE80211_BAND_2GHZ) {
 			if (idx < 4)
 				txpower = ar->power_2G_cck;
 			else
@@ -797,7 +797,7 @@ static __le32 carl9170_tx_physet(struct ar9170 *ar,
 		 * tmp |= cpu_to_le32(AR9170_TX_PHY_GREENFIELD);
 		 */
 	} else {
-		if (info->band == NL80211_BAND_2GHZ) {
+		if (info->band == IEEE80211_BAND_2GHZ) {
 			if (txrate->idx <= AR9170_TX_PHY_RATE_CCK_11M)
 				tmp |= cpu_to_le32(AR9170_TX_PHY_MOD_CCK);
 			else
@@ -1130,7 +1130,7 @@ static void carl9170_tx_ampdu(struct ar9170 *ar)
 	unsigned int i = 0, done_ampdus = 0;
 	u16 seq, queue, tmpssn;
 
-	atomic_inc(&ar->tx_ampdu_scheduler);
+	atomic_inc_unchecked(&ar->tx_ampdu_scheduler);
 	ar->tx_ampdu_schedule = false;
 
 	if (atomic_read(&ar->tx_ampdu_upload))

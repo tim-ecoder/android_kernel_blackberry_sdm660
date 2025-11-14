@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -198,7 +198,6 @@ struct qpnp_lcdb {
 	struct regmap			*regmap;
 	struct pmic_revid_data		*pmic_rev_id;
 	u32				base;
-	u32				wa_flags;
 	int				sc_irq;
 
 	/* TTW params */
@@ -217,10 +216,6 @@ struct qpnp_lcdb {
 	struct bst_params		bst;
 	struct ldo_regulator		ldo;
 	struct ncp_regulator		ncp;
-
-	/* override */
-	bool				pwrup_pwrdn_ctl_override;
-	u8				pwrup_pwrdn_ctl;
 };
 
 struct settings {
@@ -268,10 +263,6 @@ enum lcdb_settings_index {
 	LCDB_NCP_PD_CTL,
 	LCDB_NCP_SOFT_START_CTL,
 	LCDB_SETTING_MAX,
-};
-
-enum lcdb_wa_flags {
-	NCP_SCP_DISABLE_WA = BIT(0),
 };
 
 static u32 soft_start_us[] = {
@@ -615,7 +606,9 @@ static int qpnp_lcdb_enable_wa(struct qpnp_lcdb *lcdb)
 		return rc;
 	}
 
-	if (lcdb->wa_flags & NCP_SCP_DISABLE_WA) {
+	/* execute the below for rev1.1 */
+	if (lcdb->pmic_rev_id->rev3 == PM660L_V1P1_REV3 &&
+		lcdb->pmic_rev_id->rev4 == PM660L_V1P1_REV4) {
 		/*
 		 * delay to make sure that the MID pin – ie the
 		 * output of the LCDB boost – returns to 0V
@@ -1727,26 +1720,10 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 	return 0;
 }
 
-static void qpnp_lcdb_pmic_config(struct qpnp_lcdb *lcdb)
-{
-	switch (lcdb->pmic_rev_id->pmic_subtype) {
-	case PM660L_SUBTYPE:
-		if (lcdb->pmic_rev_id->rev4 < PM660L_V2P0_REV4)
-			lcdb->wa_flags |= NCP_SCP_DISABLE_WA;
-		break;
-	default:
-		break;
-	}
-
-	pr_debug("LCDB wa_flags = 0x%2x\n", lcdb->wa_flags);
-}
-
 static int qpnp_lcdb_hw_init(struct qpnp_lcdb *lcdb)
 {
 	int rc = 0;
 	u8 val = 0;
-
-	qpnp_lcdb_pmic_config(lcdb);
 
 	rc = qpnp_lcdb_init_bst(lcdb);
 	if (rc < 0) {
@@ -1766,7 +1743,8 @@ static int qpnp_lcdb_hw_init(struct qpnp_lcdb *lcdb)
 		return rc;
 	}
 
-	if (lcdb->sc_irq >= 0 && !(lcdb->wa_flags & NCP_SCP_DISABLE_WA)) {
+	if (lcdb->sc_irq >= 0 &&
+		lcdb->pmic_rev_id->pmic_subtype != PM660L_SUBTYPE) {
 		lcdb->sc_count = 0;
 		rc = devm_request_threaded_irq(lcdb->dev, lcdb->sc_irq,
 				NULL, qpnp_lcdb_sc_irq_handler, IRQF_ONESHOT,
@@ -1863,13 +1841,6 @@ static int qpnp_lcdb_parse_dt(struct qpnp_lcdb *lcdb)
 	if (lcdb->sc_irq < 0)
 		pr_debug("sc irq is not defined\n");
 
-	if (of_property_read_bool(node, "qcom,lcdb-pwrup-pwrdn-ctl-override")) {
-		lcdb->pwrup_pwrdn_ctl_override = true;
-		of_property_read_u8(node, "qcom,lcdb-pwrup-pwrdn-ctl", &lcdb->pwrup_pwrdn_ctl);
-	} else {
-		lcdb->pwrup_pwrdn_ctl_override = false;
-	}
-
 	return rc;
 }
 
@@ -1919,31 +1890,6 @@ static int qpnp_lcdb_regulator_probe(struct platform_device *pdev)
 		pr_info("LCDB module successfully registered! lcdb_en=%d ldo_voltage=%dmV ncp_voltage=%dmV bst_voltage=%dmV\n",
 			lcdb->lcdb_enabled, lcdb->ldo.voltage_mv,
 			lcdb->ncp.voltage_mv, lcdb->bst.voltage_mv);
-
-	if (lcdb->pwrup_pwrdn_ctl_override)
-	{
-		pr_debug("[ALAN] %s() set LCDB_PWRUP_PWRDN_CTL_REG = 0x%02x\n", __func__, lcdb->pwrup_pwrdn_ctl);
-		rc = qpnp_lcdb_secure_write(lcdb, lcdb->base + LCDB_PWRUP_PWRDN_CTL_REG, lcdb->pwrup_pwrdn_ctl);
-		if (rc < 0) {
-			pr_err("Failed to set PWRUP_PWRDN_CTL rc=%d\n", rc);
-			return rc;
-		}
-
-		rc = qpnp_lcdb_masked_write(lcdb, lcdb->base + LCDB_BST_OUTPUT_VOLTAGE_REG, SET_OUTPUT_VOLTAGE_MASK, 0x17); /* 0x17 = 5.85V */
-		if (rc < 0) {
-			pr_err("Failed to set LCDB BST 5.85V rc=%d\n", rc);
-		}
-
-		rc = qpnp_lcdb_masked_write(lcdb, lcdb->base + LCDB_LDO_OUTPUT_VOLTAGE_REG, SET_OUTPUT_VOLTAGE_MASK, 0x1B); /* 0x1B = 5.8V */
-		if (rc < 0) {
-			pr_err("Failed to set LCDB LDO 5.8V rc=%d\n", rc);
-		}
-
-		rc = qpnp_lcdb_masked_write(lcdb, lcdb->base + LCDB_NCP_OUTPUT_VOLTAGE_REG, SET_OUTPUT_VOLTAGE_MASK, 0x1B); /* 0x1B = 5.8V */
-		if (rc < 0) {
-			pr_err("Failed to set LCDB NCP 5.8V rc=%d\n", rc);
-		}
-	}
 
 	return rc;
 }

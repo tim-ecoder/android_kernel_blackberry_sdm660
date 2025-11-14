@@ -1178,10 +1178,6 @@ static int ath6kl_wmi_pstream_timeout_event_rx(struct wmi *wmi, u8 *datap,
 		return -EINVAL;
 
 	ev = (struct wmi_pstream_timeout_event *) datap;
-	if (ev->traffic_class >= WMM_NUM_AC) {
-		ath6kl_err("invalid traffic class: %d\n", ev->traffic_class);
-		return -EINVAL;
-	}
 
 	/*
 	 * When the pstream (fat pipe == AC) timesout, it means there were
@@ -1523,10 +1519,6 @@ static int ath6kl_wmi_cac_event_rx(struct wmi *wmi, u8 *datap, int len,
 		return -EINVAL;
 
 	reply = (struct wmi_cac_event *) datap;
-	if (reply->ac >= WMM_NUM_AC) {
-		ath6kl_err("invalid AC: %d\n", reply->ac);
-		return -EINVAL;
-	}
 
 	if ((reply->cac_indication == CAC_INDICATION_ADMISSION_RESP) &&
 	    (reply->status_code != IEEE80211_TSPEC_STATUS_ADMISS_ACCEPTED)) {
@@ -2051,7 +2043,7 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 	sc->no_cck = cpu_to_le32(no_cck);
 	sc->num_ch = num_chan;
 
-	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		sband = ar->wiphy->bands[band];
 
 		if (!sband)
@@ -2508,10 +2500,8 @@ static int ath6kl_wmi_sync_point(struct wmi *wmi, u8 if_idx)
 		goto free_data_skb;
 
 	for (index = 0; index < num_pri_streams; index++) {
-		if (WARN_ON(!data_sync_bufs[index].skb)) {
-			ret = -ENOMEM;
+		if (WARN_ON(!data_sync_bufs[index].skb))
 			goto free_data_skb;
-		}
 
 		ep_id = ath6kl_ac2_endpoint_id(wmi->parent_dev,
 					       data_sync_bufs[index].
@@ -2641,13 +2631,8 @@ int ath6kl_wmi_delete_pstream_cmd(struct wmi *wmi, u8 if_idx, u8 traffic_class,
 	u16 active_tsids = 0;
 	int ret;
 
-	if (traffic_class >= WMM_NUM_AC) {
+	if (traffic_class > 3) {
 		ath6kl_err("invalid traffic class: %d\n", traffic_class);
-		return -EINVAL;
-	}
-
-	if (tsid >= 16) {
-		ath6kl_err("invalid tsid: %d\n", tsid);
 		return -EINVAL;
 	}
 
@@ -2780,10 +2765,10 @@ static int ath6kl_set_bitrate_mask64(struct wmi *wmi, u8 if_idx,
 	memset(&ratemask, 0, sizeof(ratemask));
 
 	/* only check 2.4 and 5 GHz bands, skip the rest */
-	for (band = 0; band <= NL80211_BAND_5GHZ; band++) {
+	for (band = 0; band <= IEEE80211_BAND_5GHZ; band++) {
 		/* copy legacy rate mask */
 		ratemask[band] = mask->control[band].legacy;
-		if (band == NL80211_BAND_5GHZ)
+		if (band == IEEE80211_BAND_5GHZ)
 			ratemask[band] =
 				mask->control[band].legacy << 4;
 
@@ -2809,9 +2794,9 @@ static int ath6kl_set_bitrate_mask64(struct wmi *wmi, u8 if_idx,
 		if (mode == WMI_RATES_MODE_11A ||
 		    mode == WMI_RATES_MODE_11A_HT20 ||
 		    mode == WMI_RATES_MODE_11A_HT40)
-			band = NL80211_BAND_5GHZ;
+			band = IEEE80211_BAND_5GHZ;
 		else
-			band = NL80211_BAND_2GHZ;
+			band = IEEE80211_BAND_2GHZ;
 		cmd->ratemask[mode] = cpu_to_le64(ratemask[band]);
 	}
 
@@ -2832,10 +2817,10 @@ static int ath6kl_set_bitrate_mask32(struct wmi *wmi, u8 if_idx,
 	memset(&ratemask, 0, sizeof(ratemask));
 
 	/* only check 2.4 and 5 GHz bands, skip the rest */
-	for (band = 0; band <= NL80211_BAND_5GHZ; band++) {
+	for (band = 0; band <= IEEE80211_BAND_5GHZ; band++) {
 		/* copy legacy rate mask */
 		ratemask[band] = mask->control[band].legacy;
-		if (band == NL80211_BAND_5GHZ)
+		if (band == IEEE80211_BAND_5GHZ)
 			ratemask[band] =
 				mask->control[band].legacy << 4;
 
@@ -2859,9 +2844,9 @@ static int ath6kl_set_bitrate_mask32(struct wmi *wmi, u8 if_idx,
 		if (mode == WMI_RATES_MODE_11A ||
 		    mode == WMI_RATES_MODE_11A_HT20 ||
 		    mode == WMI_RATES_MODE_11A_HT40)
-			band = NL80211_BAND_5GHZ;
+			band = IEEE80211_BAND_5GHZ;
 		else
-			band = NL80211_BAND_2GHZ;
+			band = IEEE80211_BAND_2GHZ;
 		cmd->ratemask[mode] = cpu_to_le32(ratemask[band]);
 	}
 
@@ -3184,7 +3169,7 @@ int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 if_idx,
 }
 
 int ath6kl_wmi_set_htcap_cmd(struct wmi *wmi, u8 if_idx,
-			     enum nl80211_band band,
+			     enum ieee80211_band band,
 			     struct ath6kl_htcap *htcap)
 {
 	struct sk_buff *skb;
@@ -3197,7 +3182,7 @@ int ath6kl_wmi_set_htcap_cmd(struct wmi *wmi, u8 if_idx,
 	cmd = (struct wmi_set_htcap_cmd *) skb->data;
 
 	/*
-	 * NOTE: Band in firmware matches enum nl80211_band, it is unlikely
+	 * NOTE: Band in firmware matches enum ieee80211_band, it is unlikely
 	 * this will be changed in firmware. If at all there is any change in
 	 * band value, the host needs to be fixed.
 	 */

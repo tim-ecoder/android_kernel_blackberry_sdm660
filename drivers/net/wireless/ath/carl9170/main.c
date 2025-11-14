@@ -320,7 +320,7 @@ static void carl9170_zap_queues(struct ar9170 *ar)
 	rcu_read_unlock();
 
 	atomic_set(&ar->tx_ampdu_upload, 0);
-	atomic_set(&ar->tx_ampdu_scheduler, 0);
+	atomic_set_unchecked(&ar->tx_ampdu_scheduler, 0);
 	atomic_set(&ar->tx_total_pending, 0);
 	atomic_set(&ar->tx_total_queued, 0);
 	atomic_set(&ar->mem_free_blocks, ar->fw.mem_blocks);
@@ -370,7 +370,7 @@ static int carl9170_op_start(struct ieee80211_hw *hw)
 		ar->max_queue_stop_timeout[i] = 0;
 	}
 
-	atomic_set(&ar->mem_allocs, 0);
+	atomic_set_unchecked(&ar->mem_allocs, 0);
 
 	err = carl9170_usb_open(ar);
 	if (err)
@@ -490,7 +490,7 @@ static void carl9170_restart_work(struct work_struct *work)
 
 	if (!err && !ar->force_usb_reset) {
 		ar->restart_counter++;
-		atomic_set(&ar->pending_restarts, 0);
+		atomic_set_unchecked(&ar->pending_restarts, 0);
 
 		ieee80211_restart_hw(ar->hw);
 	} else {
@@ -513,7 +513,7 @@ void carl9170_restart(struct ar9170 *ar, const enum carl9170_restart_reasons r)
 	 * By ignoring these *surplus* reset events, the device won't be
 	 * killed again, right after it has recovered.
 	 */
-	if (atomic_inc_return(&ar->pending_restarts) > 1) {
+	if (atomic_inc_return_unchecked(&ar->pending_restarts) > 1) {
 		dev_dbg(&ar->udev->dev, "ignoring restart (%d)\n", r);
 		return;
 	}
@@ -582,10 +582,11 @@ static int carl9170_init_interface(struct ar9170 *ar,
 	ar->disable_offload |= ((vif->type != NL80211_IFTYPE_STATION) &&
 	    (vif->type != NL80211_IFTYPE_AP));
 
-	/* The driver used to have P2P GO+CLIENT support,
-	 * but since this was dropped and we don't know if
-	 * there are any gremlins lurking in the shadows,
-	 * so best we keep HW offload disabled for P2P.
+	/* While the driver supports HW offload in a single
+	 * P2P client configuration, it doesn't support HW
+	 * offload in the favourit, concurrent P2P GO+CLIENT
+	 * configuration. Hence, HW offload will always be
+	 * disabled for P2P.
 	 */
 	ar->disable_offload |= vif->p2p;
 
@@ -637,6 +638,18 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 		case NL80211_IFTYPE_STATION:
 			if (vif->type == NL80211_IFTYPE_STATION)
 				break;
+
+			/* P2P GO [master] use-case
+			 * Because the P2P GO station is selected dynamically
+			 * by all participating peers of a WIFI Direct network,
+			 * the driver has be able to change the main interface
+			 * operating mode on the fly.
+			 */
+			if (main_vif->p2p && vif->p2p &&
+			    vif->type == NL80211_IFTYPE_AP) {
+				old_main = main_vif;
+				break;
+			}
 
 			err = -EBUSY;
 			rcu_read_unlock();
@@ -1653,7 +1666,7 @@ static int carl9170_op_get_survey(struct ieee80211_hw *hw, int idx,
 			return err;
 	}
 
-	for (b = 0; b < NUM_NL80211_BANDS; b++) {
+	for (b = 0; b < IEEE80211_NUM_BANDS; b++) {
 		band = ar->hw->wiphy->bands[b];
 
 		if (!band)
@@ -1807,7 +1820,7 @@ void *carl9170_alloc(size_t priv_size)
 	spin_lock_init(&ar->tx_ampdu_list_lock);
 	spin_lock_init(&ar->mem_lock);
 	spin_lock_init(&ar->state_lock);
-	atomic_set(&ar->pending_restarts, 0);
+	atomic_set_unchecked(&ar->pending_restarts, 0);
 	ar->vifs = 0;
 	for (i = 0; i < ar->hw->queues; i++) {
 		skb_queue_head_init(&ar->tx_status[i]);
@@ -1928,13 +1941,13 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	}
 
 	if (ar->eeprom.operating_flags & AR9170_OPFLAG_2GHZ) {
-		ar->hw->wiphy->bands[NL80211_BAND_2GHZ] =
+		ar->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&carl9170_band_2GHz;
 		chans += carl9170_band_2GHz.n_channels;
 		bands++;
 	}
 	if (ar->eeprom.operating_flags & AR9170_OPFLAG_5GHZ) {
-		ar->hw->wiphy->bands[NL80211_BAND_5GHZ] =
+		ar->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&carl9170_band_5GHz;
 		chans += carl9170_band_5GHz.n_channels;
 		bands++;

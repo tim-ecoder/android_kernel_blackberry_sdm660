@@ -3,7 +3,7 @@
  * MSM 7k High speed uart driver
  *
  * Copyright (c) 2008 Google Inc.
- * Copyright (c) 2007-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2007-2017, The Linux Foundation. All rights reserved.
  * Modified: Nick Pelly <npelly@google.com>
  *
  * All source code in this file is licensed under the following license
@@ -66,7 +66,6 @@
 #include <linux/msm-sps.h>
 #include <linux/platform_data/msm_serial_hs.h>
 #include <linux/msm-bus.h>
-#include <soc/qcom/boot_stats.h>
 
 #include "msm_serial_hs_hwreg.h"
 #define UART_SPS_CONS_PERIPHERAL 0
@@ -359,8 +358,6 @@ static int msm_hs_clk_bus_vote(struct msm_hs_port *msm_uport)
 			dev_err(msm_uport->uport.dev,
 				"%s: Could not turn on pclk [%d]\n",
 				__func__, rc);
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::1\n");
 			goto busreset;
 		}
 	}
@@ -369,8 +366,6 @@ static int msm_hs_clk_bus_vote(struct msm_hs_port *msm_uport)
 		dev_err(msm_uport->uport.dev,
 			"%s: Could not turn on core clk [%d]\n",
 			__func__, rc);
-			printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-      printk("BBox::UEC;14::1\n");
 		goto core_unprepare;
 	}
 	MSM_HS_DBG("%s: Clock ON successful\n", __func__);
@@ -406,8 +401,6 @@ static void msm_hs_resource_unvote(struct msm_hs_port *msm_uport)
 	if (rc <= 0) {
 		MSM_HS_WARN("%s(): rc zero, bailing\n", __func__);
 		WARN_ON(1);
-				printk("BBox; %s LINE=%d rc=%d\n",__func__,__LINE__,rc);
-        printk("BBox::UEC;14::1\n");
 		return;
 	}
 	atomic_dec(&msm_uport->resource_count);
@@ -1191,7 +1184,6 @@ static void msm_hs_set_termios(struct uart_port *uport,
 		data |= EIGHT_BPC;
 		break;
 	}
-	uport->status  &= ~(UPSTAT_AUTOCTS);
 	/* stop bits */
 	if (c_cflag & CSTOPB) {
 		data |= STOP_BIT_TWO;
@@ -1236,7 +1228,6 @@ static void msm_hs_set_termios(struct uart_port *uport,
 	if (c_cflag & CRTSCTS) {
 		data |= UARTDM_MR1_CTS_CTL_BMSK;
 		data |= UARTDM_MR1_RX_RDY_CTL_BMSK;
-		uport->status |= UPSTAT_AUTOCTS;
 		msm_uport->flow_control = true;
 	}
 	msm_hs_write(uport, UART_DM_MR1, data);
@@ -2564,8 +2555,6 @@ static int msm_hs_config_uart_gpios(struct uart_port *uport)
 			if (unlikely(ret)) {
 				MSM_HS_ERR("gpio request failed for:%d\n",
 					pdata->uart_tx_gpio);
-				printk("BBox; %s LINE=%d ret=%d\n",__func__,__LINE__,ret);
-        printk("BBox::UEC;14::1\n");
 				goto exit_uart_config;
 			}
 		}
@@ -2576,8 +2565,6 @@ static int msm_hs_config_uart_gpios(struct uart_port *uport)
 			if (unlikely(ret)) {
 				MSM_HS_ERR("gpio request failed for:%d\n",
 					pdata->uart_rx_gpio);
-				printk("BBox; %s LINE=%d ret=%d\n",__func__,__LINE__,ret);
-        printk("BBox::UEC;14::1\n");
 				goto uart_tx_unconfig;
 			}
 		}
@@ -2588,8 +2575,6 @@ static int msm_hs_config_uart_gpios(struct uart_port *uport)
 			if (unlikely(ret)) {
 				MSM_HS_ERR("gpio request failed for:%d\n",
 					pdata->uart_cts_gpio);
-				printk("BBox; %s LINE=%d ret=%d\n",__func__,__LINE__,ret);
-        printk("BBox::UEC;14::1\n");
 				goto uart_rx_unconfig;
 			}
 		}
@@ -2600,15 +2585,11 @@ static int msm_hs_config_uart_gpios(struct uart_port *uport)
 			if (unlikely(ret)) {
 				MSM_HS_ERR("gpio request failed for:%d\n",
 					pdata->uart_rfr_gpio);
-				printk("BBox; %s LINE=%d ret=%d\n",__func__,__LINE__,ret);
-        printk("BBox::UEC;14::1\n");
 				goto uart_cts_unconfig;
 			}
 		}
 	} else {
 		MSM_HS_ERR("Pdata is NULL.\n");
-				printk("BBox; %s LINE=%d ret=%d\n",__func__,__LINE__,ret);
-        printk("BBox::UEC;14::1\n");
 		ret = -EINVAL;
 	}
 	return ret;
@@ -2675,7 +2656,6 @@ static int msm_hs_startup(struct uart_port *uport)
 	int ret;
 	int rfr_level;
 	unsigned long flags;
-	u32 irq_type;
 	unsigned int data;
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	struct circ_buf *tx_buf = &uport->state->xmit;
@@ -2696,11 +2676,8 @@ static int msm_hs_startup(struct uart_port *uport)
 	msm_hs_resource_vote(msm_uport);
 
 	if (is_use_low_power_wakeup(msm_uport)) {
-		irq_type = irq_get_trigger_type(msm_uport->wakeup.irq);
-		if (irq_type == IRQ_TYPE_NONE)
-			irq_type = IRQ_TYPE_EDGE_FALLING;
 		ret = request_irq(msm_uport->wakeup.irq, msm_hs_wakeup_isr,
-					irq_type | IRQF_ONESHOT,
+					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					"msm_hs_wakeup", msm_uport);
 		if (unlikely(ret)) {
 			MSM_HS_ERR("%s():Err getting uart wakeup_irq %d\n",
@@ -3436,7 +3413,6 @@ static int msm_hs_probe(struct platform_device *pdev)
 	struct msm_serial_hs_platform_data *pdata = pdev->dev.platform_data;
 	unsigned long data;
 	char name[30];
-	char boot_marker[40];
 
 	if (pdev->dev.of_node) {
 		dev_dbg(&pdev->dev, "device tree enabled\n");
@@ -3461,10 +3437,6 @@ static int msm_hs_probe(struct platform_device *pdev)
 		}
 		pdev->dev.platform_data = pdata;
 	}
-
-	snprintf(boot_marker, sizeof(boot_marker),
-			"M - DRIVER MSM HS-UART_%d Init", pdev->id);
-	place_marker(boot_marker);
 
 	if (pdev->id < 0 || pdev->id >= UARTDM_NR) {
 		dev_err(&pdev->dev, "Invalid plaform device ID = %d\n",
@@ -3699,9 +3671,6 @@ static int msm_hs_probe(struct platform_device *pdev)
 	if (!ret) {
 		msm_hs_clk_bus_unvote(msm_uport);
 		msm_serial_hs_rt_init(uport);
-		snprintf(boot_marker, sizeof(boot_marker),
-				"M - DRIVER MSM HS-UART_%d Ready", pdev->id);
-		place_marker(boot_marker);
 		return ret;
 	}
 

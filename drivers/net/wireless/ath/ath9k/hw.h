@@ -671,7 +671,7 @@ struct ath_hw_private_ops {
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	bool (*is_aic_enabled)(struct ath_hw *ah);
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
-};
+} __no_const;
 
 /**
  * struct ath_spec_scan - parameters for Atheros spectral scan
@@ -747,7 +747,7 @@ struct ath_hw_ops {
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	void (*set_bt_ant_diversity)(struct ath_hw *hw, bool enable);
 #endif
-};
+} __no_const;
 
 struct ath_nf_limits {
 	s16 max;
@@ -814,7 +814,6 @@ struct ath_hw {
 	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
-	DECLARE_BITMAP(pending_del_keymap, ATH_KEYMAX);
 
 	enum ath9k_int imask;
 	u32 imrs2_reg;
