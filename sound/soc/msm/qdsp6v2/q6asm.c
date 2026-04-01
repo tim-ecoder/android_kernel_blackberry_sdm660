@@ -2771,6 +2771,10 @@ static int __q6asm_open_read(struct audio_client *ac,
 
 	ac->topology = open.preprocopo_id;
 	ac->app_type = q6asm_get_asm_app_type_cal();
+	/* BB ACDB has no preproc topology for capture; use NONE so
+	 * ADSP accepts the session without ACDB calibration */
+	if (open.preprocopo_id == 0)
+		open.preprocopo_id = ASM_STREAM_PREPROCOPO_ID_NONE;
 	if (ac->perf_mode == LOW_LATENCY_PCM_MODE) {
 		open.mode_flags |= ASM_LOW_LATENCY_TX_STREAM_SESSION <<
 			ASM_SHIFT_STREAM_PERF_MODE_FLAG_IN_OPEN_READ;

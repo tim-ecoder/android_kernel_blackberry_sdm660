@@ -1434,6 +1434,10 @@ int msm_pcm_routing_reg_phy_stream(int fedai_id, int perf_mode,
 			topology = msm_routing_get_adm_topology(fedai_id,
 								session_type,
 								i);
+			/* BB ACDB has no topology for non-zero app_type on
+			 * capture; clear app_type to prevent ADSP reject */
+			if (topology == 0 && app_type != 0)
+				app_type = 0;
 			copp_idx = adm_open(msm_bedais[i].port_id, path_type,
 					    sample_rate, channels, topology,
 					    perf_mode, bits_per_sample,
