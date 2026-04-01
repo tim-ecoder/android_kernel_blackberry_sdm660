@@ -2437,14 +2437,17 @@ static void msm_isp_input_disable(struct vfe_device *vfe_dev, int cmd_type)
 		}
 		if (i != VFE_PIX_0 || ext_read)
 			continue;
-		if (total_stream_count == 0 || cmd_type == STOP_IMMEDIATELY)
-			vfe_dev->hw_info->vfe_ops.core_ops.
-				update_camif_state(vfe_dev,
-				DISABLE_CAMIF_IMMEDIATELY);
-		else
-			vfe_dev->hw_info->vfe_ops.core_ops.
-				update_camif_state(vfe_dev,
-				DISABLE_CAMIF);
+		/*
+		 * Always use DISABLE_CAMIF_IMMEDIATELY (STOP+CLEAR, 0x6).
+		 * The CLEAR bit resets the CAMIF FSM to idle. Without it,
+		 * a subsequent ENABLE_CAMIF may fail to restart the FSM
+		 * if it was left in a "stopped-but-not-cleared" state
+		 * (e.g. rapid stream reconfigure where PIX stops and
+		 * restarts without a full VFE halt/reset cycle).
+		 */
+		vfe_dev->hw_info->vfe_ops.core_ops.
+			update_camif_state(vfe_dev,
+			DISABLE_CAMIF_IMMEDIATELY);
 	}
 	/*
 	 * halt and reset hardware if all streams are disabled, in this case
